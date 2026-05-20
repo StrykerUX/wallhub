@@ -124,6 +124,7 @@ export const api = {
   saveConfig: (config: Config) => invoke<void>("save_config", { config }),
 
   getLibrary: () => invoke<LocalWallpaper[]>("get_library"),
+  deleteWallpaper: (path: string) => invoke<void>("delete_wallpaper", { path }),
 
   detectLocation: () =>
     invoke<{ lat: number; lon: number; city: string }>("detect_location"),

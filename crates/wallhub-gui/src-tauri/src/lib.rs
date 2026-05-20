@@ -30,6 +30,7 @@ pub fn run() {
             commands::pause_daemon,
             commands::resume_daemon,
             commands::get_library,
+            commands::delete_wallpaper,
             commands::get_config,
             commands::save_config,
             commands::detect_location,

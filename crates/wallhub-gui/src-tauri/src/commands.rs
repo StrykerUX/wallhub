@@ -160,6 +160,17 @@ pub fn get_library() -> Result<Vec<LocalWallpaper>, String> {
     Ok(storage.list_local())
 }
 
+#[tauri::command]
+pub fn delete_wallpaper(path: String) -> Result<(), String> {
+    let cfg = Config::load().map_err(|e| e.to_string())?;
+    let p = std::path::Path::new(&path);
+    // Only allow deleting files inside the wallpaper dir
+    if !p.starts_with(&cfg.general.wallpaper_dir) {
+        return Err("Path is outside wallpaper directory".into());
+    }
+    std::fs::remove_file(p).map_err(|e| e.to_string())
+}
+
 // ─── Geolocation ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]
