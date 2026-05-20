@@ -92,6 +92,7 @@ export interface Config {
     lat: number;
     lon: number;
   };
+  api_key?: string;
 }
 
 export const api = {

@@ -13,34 +13,43 @@ export default function BrowsePage() {
     categories: "100",
     purity: "100",
   });
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [seed] = useState(() => Math.random().toString(36).slice(2, 8));
+
   const loaderRef = useRef<HTMLDivElement>(null);
+  // Refs so the IntersectionObserver closure never goes stale
+  const fetchingRef = useRef(false);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
 
   useEffect(() => {
-    api.getApiKey().then((k) => setHasApiKey(!!k));
+    api.getConfig().then((cfg) => setHasApiKey(!!cfg.api_key));
   }, []);
 
   const fetchPage = useCallback(
     async (p: SearchParams, pageNum: number, append = false) => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
       setLoading(true);
+      setError(null);
       try {
         const res = await api.search({
           ...p,
           page: pageNum,
           seed: p.sorting === "random" ? seed : undefined,
         });
-        setWallpapers((prev) =>
-          append ? [...prev, ...res.data] : res.data
-        );
-        setHasMore(pageNum < res.meta.last_page);
+        setWallpapers((prev) => (append ? [...prev, ...res.data] : res.data));
+        pageRef.current = pageNum;
+        hasMoreRef.current = pageNum < res.meta.last_page;
       } catch (e) {
-        console.error(e);
+        setError(String(e));
       } finally {
         setLoading(false);
+        fetchingRef.current = false;
       }
     },
     [seed]
@@ -48,30 +57,30 @@ export default function BrowsePage() {
 
   // Initial load
   useEffect(() => {
-    fetchPage(params, 1);
+    fetchPage(paramsRef.current, 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Infinite scroll via IntersectionObserver
+  // Infinite scroll — created once, reads state via refs
   useEffect(() => {
-    if (!loaderRef.current) return;
+    const el = loaderRef.current;
+    if (!el) return;
     const obs = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loading && hasMore) {
-          const next = page + 1;
-          setPage(next);
-          fetchPage(params, next, true);
+        if (entries[0].isIntersecting && !fetchingRef.current && hasMoreRef.current) {
+          fetchPage(paramsRef.current, pageRef.current + 1, true);
         }
       },
       { threshold: 0.1 }
     );
-    obs.observe(loaderRef.current);
+    obs.observe(el);
     return () => obs.disconnect();
-  }, [loading, hasMore, page, params, fetchPage]);
+  }, [fetchPage]);
 
   function handleSearch(newParams: SearchParams) {
+    pageRef.current = 1;
+    hasMoreRef.current = true;
     setParams(newParams);
-    setPage(1);
-    setHasMore(true);
     fetchPage(newParams, 1);
   }
 
@@ -80,7 +89,20 @@ export default function BrowsePage() {
       <FilterBar hasApiKey={hasApiKey} onSearch={handleSearch} />
 
       <div className="flex-1 overflow-y-auto p-4">
-        {wallpapers.length === 0 && !loading && (
+        {error && (
+          <div className="flex flex-col items-center justify-center h-40 gap-2">
+            <p className="text-red-400 text-sm">Failed to load wallpapers</p>
+            <p className="text-[var(--muted)] text-xs max-w-sm text-center">{error}</p>
+            <button
+              onClick={() => fetchPage(paramsRef.current, 1)}
+              className="mt-1 text-xs bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text)] rounded-lg px-3 py-1.5 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {wallpapers.length === 0 && !loading && !error && (
           <div className="flex items-center justify-center h-full text-[var(--muted)] text-sm">
             No wallpapers found. Adjust filters and search.
           </div>
@@ -88,9 +110,7 @@ export default function BrowsePage() {
 
         <div
           className="grid gap-3"
-          style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          }}
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
         >
           {wallpapers.map((w) => (
             <WallpaperCard key={w.id} wallpaper={w} />

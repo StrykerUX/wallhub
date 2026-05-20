@@ -1,5 +1,10 @@
 mod commands;
 
+use std::sync::Arc;
+use tauri::Manager;
+use wallhub_core::wallhaven::{make_limiter, SharedLimiter};
+
+pub struct RateLimiterState(pub SharedLimiter);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -30,8 +35,8 @@ pub fn run() {
             commands::detect_location,
             commands::start_daemon,
         ])
-        .setup(|_app| {
-            // Ensure wallpaper directories exist
+        .setup(|app| {
+            app.manage(RateLimiterState(make_limiter()));
             if let Ok(cfg) = wallhub_core::config::Config::load() {
                 let _ = wallhub_core::storage::Storage::new(cfg.general.wallpaper_dir);
             }

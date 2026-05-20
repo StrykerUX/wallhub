@@ -233,9 +233,7 @@ async fn apply_daily(cfg: &Config) -> Result<()> {
 }
 
 fn get_api_key() -> Option<String> {
-    keyring::Entry::new("wallhub", "wallhaven")
-        .ok()
-        .and_then(|e| e.get_password().ok())
+    crate::config::Config::load().ok().and_then(|c| c.api_key)
 }
 
 fn next_six_am(now: DateTime<Local>) -> DateTime<Local> {

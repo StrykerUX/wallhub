@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api, type Config, type IpcStatus } from "@/lib/tauri";
+import Select from "@/components/Select";
 
 export default function RotationPage() {
   const [config, setConfig] = useState<Config | null>(null);
@@ -145,18 +146,19 @@ export default function RotationPage() {
             </div>
             <div>
               <label className="text-sm font-medium block mb-1">Pool</label>
-              <select
+              <Select
                 value={config.rotation.pool}
-                onChange={(e) =>
+                onChange={(pool) =>
                   setConfig((c) =>
-                    c ? { ...c, rotation: { ...c.rotation, pool: e.target.value } } : c
+                    c ? { ...c, rotation: { ...c.rotation, pool } } : c
                   )
                 }
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--accent)]"
-              >
-                <option value="local">Local library</option>
-                <option value="wallhaven">wallhaven (random)</option>
-              </select>
+                options={[
+                  { value: "local", label: "Local library" },
+                  { value: "wallhaven", label: "wallhaven (random)" },
+                ]}
+                className="w-full"
+              />
             </div>
           </div>
         )}

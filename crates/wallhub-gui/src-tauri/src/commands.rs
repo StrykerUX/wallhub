@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tauri::State;
 use wallhub_core::{
     config::{Config, RotationConfig},
     ipc::{IpcClient, IpcStatus},
@@ -7,18 +9,24 @@ use wallhub_core::{
     wallpaper::{set_wallpaper, WallpaperTarget},
 };
 
+use crate::RateLimiterState;
+
 fn api_key() -> Option<String> {
-    keyring::Entry::new("wallhub", "wallhaven")
-        .ok()
-        .and_then(|e| e.get_password().ok())
+    Config::load().ok().and_then(|c| c.api_key)
+}
+
+fn make_client(limiter: &RateLimiterState) -> WallhavenClient {
+    WallhavenClient::with_limiter(api_key(), Arc::clone(&limiter.0))
 }
 
 // ─── Wallhaven search ────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn search_wallpapers(params: SearchParams) -> Result<SearchResponse, String> {
-    let client = WallhavenClient::new(api_key());
-    client.search(&params).await.map_err(|e| e.to_string())
+pub async fn search_wallpapers(
+    params: SearchParams,
+    limiter: State<'_, RateLimiterState>,
+) -> Result<SearchResponse, String> {
+    make_client(&limiter).search(&params).await.map_err(|e| e.to_string())
 }
 
 // ─── Wallpaper apply ─────────────────────────────────────────────────────────
@@ -42,10 +50,13 @@ pub struct DownloadArgs {
 }
 
 #[tauri::command]
-pub async fn download_wallpaper(args: DownloadArgs) -> Result<String, String> {
+pub async fn download_wallpaper(
+    args: DownloadArgs,
+    limiter: State<'_, RateLimiterState>,
+) -> Result<String, String> {
     let cfg = Config::load().map_err(|e| e.to_string())?;
     let storage = Storage::new(cfg.general.wallpaper_dir).map_err(|e| e.to_string())?;
-    let client = WallhavenClient::new(api_key());
+    let client = make_client(&limiter);
     let path = storage
         .download_wallpaper(&client, &args.wallhaven_id, &args.url)
         .await
@@ -61,10 +72,9 @@ pub async fn download_wallpaper(args: DownloadArgs) -> Result<String, String> {
 
 #[tauri::command]
 pub fn save_api_key(key: String) -> Result<(), String> {
-    keyring::Entry::new("wallhub", "wallhaven")
-        .map_err(|e| e.to_string())?
-        .set_password(&key)
-        .map_err(|e| e.to_string())
+    let mut cfg = Config::load().map_err(|e| e.to_string())?;
+    cfg.api_key = if key.is_empty() { None } else { Some(key) };
+    cfg.save().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -163,16 +173,26 @@ pub struct GeoResult {
 pub async fn detect_location() -> Result<GeoResult, String> {
     #[derive(Deserialize)]
     struct IpApiResponse {
+        #[serde(default)]
         latitude: f64,
+        #[serde(default)]
         longitude: f64,
+        #[serde(default)]
         city: String,
     }
-    let resp = reqwest::get("https://ipapi.co/json/")
+    let raw = reqwest::get("https://ipapi.co/json/")
         .await
-        .map_err(|e| e.to_string())?
-        .json::<IpApiResponse>()
+        .map_err(|e| format!("network error: {e}"))?
+        .text()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("read error: {e}"))?;
+
+    let resp: IpApiResponse = serde_json::from_str(&raw)
+        .map_err(|e| format!("ipapi.co parse error: {e}\nresponse: {raw}"))?;
+
+    if resp.latitude == 0.0 && resp.longitude == 0.0 {
+        return Err("ipapi.co returned no location (possibly rate-limited)".into());
+    }
 
     // Persist in config
     let mut cfg = Config::load().map_err(|e| e.to_string())?;

@@ -11,18 +11,20 @@ interface Props {
 export default function WallpaperCard({ wallpaper, onApplied }: Props) {
   const [hovering, setHovering] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
   async function apply(target: WallpaperTarget) {
     setLoading(true);
+    setApplyError(null);
     try {
       await api.download(wallpaper.id, wallpaper.path, target);
       onApplied?.();
+      setShowModal(false);
     } catch (e) {
-      console.error(e);
+      setApplyError(String(e));
     } finally {
       setLoading(false);
-      setShowModal(false);
     }
   }
 
@@ -82,7 +84,11 @@ export default function WallpaperCard({ wallpaper, onApplied }: Props) {
               alt={wallpaper.id}
               className="w-full object-contain max-h-96"
             />
-            <div className="p-4 flex items-center justify-between">
+            <div className="p-4 flex flex-col gap-3">
+              {applyError && (
+                <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{applyError}</p>
+              )}
+              <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-[var(--muted)]">
                   {wallpaper.resolution} · {wallpaper.ratio} · {wallpaper.file_type.split("/")[1]?.toUpperCase()}
@@ -113,6 +119,7 @@ export default function WallpaperCard({ wallpaper, onApplied }: Props) {
                 >
                   {loading ? "Applying..." : "Set Both"}
                 </button>
+              </div>
               </div>
             </div>
           </div>

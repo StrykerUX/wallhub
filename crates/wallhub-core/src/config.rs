@@ -8,6 +8,8 @@ pub struct Config {
     pub rotation: RotationConfig,
     pub time_of_day: TimeOfDayConfig,
     pub location: LocationConfig,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,6 +84,7 @@ impl Default for Config {
                 lat: 19.4326,
                 lon: -99.1332,
             },
+            api_key: None,
         }
     }
 }

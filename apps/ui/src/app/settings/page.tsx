@@ -10,14 +10,17 @@ export default function SettingsPage() {
   const [savingKey, setSavingKey] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [geoCity, setGeoCity] = useState<string | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const [daemonLogs, setDaemonLogs] = useState<string>("");
   const [startingDaemon, setStartingDaemon] = useState(false);
 
   useEffect(() => {
-    api.getConfig().then(setConfig);
-    api.getApiKey().then((k) => {
-      setHasKey(!!k);
-      if (k) setApiKey("••••••••");
+    api.getConfig().then((cfg) => {
+      setConfig(cfg);
+      if (cfg.api_key) {
+        setHasKey(true);
+        setApiKey("••••••••");
+      }
     });
   }, []);
 
@@ -27,9 +30,17 @@ export default function SettingsPage() {
       await api.saveApiKey(apiKey);
       setHasKey(true);
       setApiKey("••••••••");
+    } catch (e) {
+      alert(`Error saving API key: ${e}`);
     } finally {
       setSavingKey(false);
     }
+  }
+
+  async function clearKey() {
+    await api.saveApiKey("").catch(() => {});
+    setHasKey(false);
+    setApiKey("");
   }
 
   async function saveConfig() {
@@ -44,6 +55,8 @@ export default function SettingsPage() {
 
   async function detectLocation() {
     setDetecting(true);
+    setGeoError(null);
+    setGeoCity(null);
     try {
       const result = await api.detectLocation();
       setGeoCity(result.city);
@@ -51,7 +64,7 @@ export default function SettingsPage() {
         c ? { ...c, location: { lat: result.lat, lon: result.lon } } : c
       );
     } catch (e) {
-      console.error(e);
+      setGeoError(String(e));
     } finally {
       setDetecting(false);
     }
@@ -86,22 +99,34 @@ export default function SettingsPage() {
             <div className="flex gap-2">
               <input
                 type="password"
-                placeholder="API key (optional)"
+                placeholder="Paste your API key here"
                 value={apiKey}
                 onFocus={() => { if (hasKey) setApiKey(""); }}
                 onChange={(e) => setApiKey(e.target.value)}
                 className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-sm text-[var(--text)] outline-none focus:border-[var(--accent)] placeholder:text-[var(--muted)]"
               />
-              <button
-                onClick={saveKey}
-                disabled={savingKey || !apiKey || apiKey === "••••••••"}
-                className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm rounded-lg px-4 py-1.5 transition-colors disabled:opacity-50"
-              >
-                {savingKey ? "Saving..." : "Save"}
-              </button>
+              {hasKey ? (
+                <button
+                  onClick={clearKey}
+                  className="bg-[var(--surface)] border border-[var(--border)] hover:border-red-500/60 hover:text-red-400 text-[var(--muted)] text-sm rounded-lg px-4 py-1.5 transition-colors"
+                >
+                  Remove
+                </button>
+              ) : (
+                <button
+                  onClick={saveKey}
+                  disabled={savingKey || !apiKey}
+                  className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm rounded-lg px-4 py-1.5 transition-colors disabled:opacity-50"
+                >
+                  {savingKey ? "Saving..." : "Save"}
+                </button>
+              )}
             </div>
             {hasKey && (
-              <p className="text-xs text-green-400">API key saved in system keyring. Unlocks NSFW filter.</p>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                <p className="text-xs text-green-400">API key active — NSFW filter unlocked</p>
+              </div>
             )}
             <p className="text-xs text-[var(--muted)]">
               Get your API key at{" "}
@@ -144,6 +169,9 @@ export default function SettingsPage() {
             </div>
             {geoCity && (
               <p className="text-xs text-green-400">Detected: {geoCity}</p>
+            )}
+            {geoError && (
+              <p className="text-xs text-red-400">Error: {geoError}</p>
             )}
           </div>
         </section>

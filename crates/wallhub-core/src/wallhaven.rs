@@ -90,11 +90,19 @@ pub struct WallhavenClient {
     limiter: Arc<DefaultDirectRateLimiter>,
 }
 
+pub type SharedLimiter = Arc<DefaultDirectRateLimiter>;
+
+pub fn make_limiter() -> SharedLimiter {
+    let quota = Quota::per_minute(NonZeroU32::new(45).unwrap());
+    Arc::new(RateLimiter::direct(quota))
+}
+
 impl WallhavenClient {
     pub fn new(api_key: Option<String>) -> Self {
-        // 45 req/min = ~1 req per 1.33s
-        let quota = Quota::per_minute(NonZeroU32::new(45).unwrap());
-        let limiter = Arc::new(RateLimiter::direct(quota));
+        Self::with_limiter(api_key, make_limiter())
+    }
+
+    pub fn with_limiter(api_key: Option<String>, limiter: Arc<DefaultDirectRateLimiter>) -> Self {
         Self {
             client: Client::builder()
                 .user_agent("wallhub/0.1")
