@@ -8,6 +8,7 @@ export default function RotationPage() {
   const [status, setStatus] = useState<IpcStatus | null>(null);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   async function load() {
     const [cfg, st] = await Promise.allSettled([api.getConfig(), api.getStatus()]);
@@ -46,6 +47,21 @@ export default function RotationPage() {
     setStatus(st);
   }
 
+  async function startDaemon() {
+    setStarting(true);
+    try {
+      await api.startDaemon();
+      // Poll for daemon to come up
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 800));
+        const [, st] = await Promise.allSettled([Promise.resolve(), api.getStatus()]);
+        if (st.status === "fulfilled") { setStatus(st.value); break; }
+      }
+    } finally {
+      setStarting(false);
+    }
+  }
+
   if (!config) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -63,10 +79,19 @@ export default function RotationPage() {
 
         {/* Daemon status */}
         <div className="flex items-center gap-3 mb-6 p-3 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
-          <div className={`w-2 h-2 rounded-full ${status?.state === "active" ? "bg-green-500" : "bg-[var(--muted)]"}`} />
-          <div className="flex-1">
+          <div className={`w-2 h-2 rounded-full shrink-0 ${
+            status?.state === "active" ? "bg-green-500 shadow-[0_0_6px_#22c55e]" :
+            status?.state === "paused" ? "bg-yellow-500" : "bg-[var(--muted)]"
+          }`} />
+          <div className="flex-1 min-w-0">
             <p className="text-sm">
-              Daemon: <span className="font-medium capitalize">{status?.state ?? "offline"}</span>
+              Daemon:{" "}
+              <span className={`font-medium capitalize ${
+                status?.state === "active" ? "text-green-400" :
+                status?.state === "paused" ? "text-yellow-400" : "text-[var(--muted)]"
+              }`}>
+                {status?.state ?? "offline"}
+              </span>
               {status?.mode && status.mode !== "disabled" && (
                 <span className="text-[var(--muted)]"> · {status.mode}</span>
               )}
@@ -77,19 +102,32 @@ export default function RotationPage() {
               </p>
             )}
           </div>
-          <button
-            onClick={triggerNext}
-            disabled={triggering}
-            className="text-xs bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text)] rounded-lg px-3 py-1.5 transition-colors"
-          >
-            {triggering ? "..." : "Apply now"}
-          </button>
-          <button
-            onClick={togglePause}
-            className="text-xs bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text)] rounded-lg px-3 py-1.5 transition-colors"
-          >
-            {status?.state === "paused" ? "Resume" : "Pause"}
-          </button>
+
+          {!status ? (
+            <button
+              onClick={startDaemon}
+              disabled={starting}
+              className="text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
+            >
+              {starting ? "Starting…" : "Start daemon"}
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={triggerNext}
+                disabled={triggering}
+                className="text-xs bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text)] rounded-lg px-3 py-1.5 transition-colors"
+              >
+                {triggering ? "…" : "Apply now"}
+              </button>
+              <button
+                onClick={togglePause}
+                className="text-xs bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text)] rounded-lg px-3 py-1.5 transition-colors"
+              >
+                {status.state === "paused" ? "Resume" : "Pause"}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Mode selector */}
