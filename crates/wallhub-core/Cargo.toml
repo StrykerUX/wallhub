@@ -1,0 +1,25 @@
+[package]
+name = "wallhub-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+toml = "0.8"
+image = { version = "0.25", features = ["jpeg", "png", "webp"] }
+rand = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
+governor = "0.8"
+keyring = "3"
+dirs = "6"
+bytes = "1"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }

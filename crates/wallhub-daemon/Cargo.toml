@@ -1,0 +1,16 @@
+[package]
+name = "wallhub-daemon"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "wallhub-daemon"
+path = "src/main.rs"
+
+[dependencies]
+wallhub-core = { path = "../wallhub-core" }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+dirs = "6"

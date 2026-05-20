@@ -1,0 +1,5 @@
+packages:
+  - "apps/*"
+  - "crates/wallhub-gui"
+allowBuilds:
+  sharp: true

@@ -1,0 +1,9 @@
+{
+  "name": "wallhub-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter ui dev",
+    "build": "pnpm --filter ui build",
+    "tauri": "pnpm --filter wallhub-gui tauri"
+  }
+}
