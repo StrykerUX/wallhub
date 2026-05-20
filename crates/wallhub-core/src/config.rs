@@ -34,7 +34,10 @@ pub struct RotationConfig {
     pub interval_minutes: u64,
     #[serde(default = "default_pool")]
     pub pool: String,
-    // wallhaven search filters used in Interval/Daily modes
+    /// Specific files to cycle through when pool == "selection"
+    #[serde(default)]
+    pub selected_paths: Vec<PathBuf>,
+    // wallhaven search filters used in Interval/Daily/wallhaven-pool modes
     pub categories: Option<String>,
     pub purity: Option<String>,
     pub atleast: Option<String>,
@@ -74,6 +77,7 @@ impl Default for Config {
                 mode: RotationMode::Disabled,
                 interval_minutes: 60,
                 pool: "local".into(),
+                selected_paths: Vec::new(),
                 categories: None,
                 purity: None,
                 atleast: Some("1920x1080".into()),

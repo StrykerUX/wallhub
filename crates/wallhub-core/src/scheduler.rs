@@ -1,5 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Datelike, Local, Timelike};
+use rand::prelude::IndexedRandom;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Notify;
 use tokio::time::{interval, Duration};
@@ -151,10 +152,19 @@ async fn apply_for_config(cfg: &Config) -> Result<()> {
         WallpaperTarget::Desktop
     };
 
-    // Try to get a random local wallpaper
+    // "selection" pool: cycle through user-picked files
+    if cfg.rotation.pool == "selection" && !cfg.rotation.selected_paths.is_empty() {
+        if let Some(path) = cfg.rotation.selected_paths.choose(&mut rand::rng()) {
+            return set_wallpaper(path, target);
+        }
+    }
+
+    // "local" pool: random from downloaded/local dirs
     let storage = Storage::new(cfg.general.wallpaper_dir.clone())?;
-    if let Some(path) = storage.get_random_local() {
-        return set_wallpaper(&path, target);
+    if cfg.rotation.pool != "wallhaven" {
+        if let Some(path) = storage.get_random_local() {
+            return set_wallpaper(&path, target);
+        }
     }
 
     // Fallback: fetch a random one from wallhaven

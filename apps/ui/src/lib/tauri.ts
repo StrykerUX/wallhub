@@ -66,7 +66,8 @@ export interface IpcStatus {
 export interface RotationConfig {
   mode: "disabled" | "time_of_day" | "interval" | "daily";
   interval_minutes: number;
-  pool: string;
+  pool: "local" | "wallhaven" | "selection";
+  selected_paths: string[];
   atleast?: string;
   ratios?: string;
   categories?: string;
