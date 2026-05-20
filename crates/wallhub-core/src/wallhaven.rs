@@ -49,10 +49,28 @@ pub struct Tag {
     pub created_at: String,
 }
 
+fn deser_u32_or_str<'de, D: serde::Deserializer<'de>>(d: D) -> Result<u32, D::Error> {
+    use serde::de::{self, Visitor};
+    struct V;
+    impl<'de> Visitor<'de> for V {
+        type Value = u32;
+        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            f.write_str("u32 or string")
+        }
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<u32, E> { Ok(v as u32) }
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<u32, E> { Ok(v as u32) }
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<u32, E> {
+            v.parse().map_err(de::Error::custom)
+        }
+    }
+    d.deserialize_any(V)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Meta {
     pub current_page: u32,
     pub last_page: u32,
+    #[serde(deserialize_with = "deser_u32_or_str")]
     pub per_page: u32,
     pub total: u64,
     pub query: Option<serde_json::Value>,
