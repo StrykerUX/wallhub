@@ -110,9 +110,9 @@ pub async fn start_daemon() -> Result<(), String> {
         .unwrap_or_default()
         .join("../bin/wallhub-daemon");
 
-    // Try to start via systemctl first
+    // Try restart (covers both "start" and "already running but stale binary")
     let via_systemctl = std::process::Command::new("systemctl")
-        .args(["--user", "start", "wallhub-daemon.service"])
+        .args(["--user", "restart", "wallhub-daemon.service"])
         .status();
 
     if via_systemctl.map(|s| s.success()).unwrap_or(false) {

@@ -13,14 +13,21 @@ interface ModalProps {
   onSelect: (paths: string[]) => void;
 }
 
+type Tab = "selected" | "all";
+
 export function LibraryPickerModal({ open, onClose, multi = false, selected, onSelect }: ModalProps) {
   const [items, setItems] = useState<LocalWallpaper[]>([]);
   const [loading, setLoading] = useState(false);
   const [localSel, setLocalSel] = useState<string[]>([]);
+  // Default to "selected" tab when editing an existing selection, "all" for fresh picks
+  const [tab, setTab] = useState<Tab>("all");
 
   useEffect(() => {
     if (!open) return;
-    setLocalSel(selected);
+    const currentSel = selected;
+    setLocalSel(currentSel);
+    // If there are already selected items, start on the "selected" tab
+    setTab(multi && currentSel.length > 0 ? "selected" : "all");
     setLoading(true);
     api.getLibrary().then(setItems).finally(() => setLoading(false));
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -38,6 +45,11 @@ export function LibraryPickerModal({ open, onClose, multi = false, selected, onS
 
   if (!open) return null;
 
+  const visibleItems =
+    tab === "selected"
+      ? items.filter((i) => localSel.includes(i.path))
+      : items;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
@@ -50,26 +62,43 @@ export function LibraryPickerModal({ open, onClose, multi = false, selected, onS
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
-          <h3 className="text-sm font-semibold">
-            {multi ? "Select wallpapers" : "Pick a wallpaper"}
-          </h3>
+          <div className="flex items-center gap-1">
+            {multi ? (
+              <>
+                {(["selected", "all"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTab(t)}
+                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                      tab === t
+                        ? "bg-[var(--accent)] text-white"
+                        : "text-[var(--muted)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    {t === "selected"
+                      ? `In selection (${localSel.length})`
+                      : `All library (${items.length})`}
+                  </button>
+                ))}
+              </>
+            ) : (
+              <h3 className="text-sm font-semibold">Pick a wallpaper</h3>
+            )}
+          </div>
+
           <div className="flex items-center gap-2">
             {multi && (
-              <>
-                <span className="text-xs text-[var(--muted)]">
-                  {localSel.length} selected
-                </span>
-                <button
-                  onClick={() => { onSelect(localSel); onClose(); }}
-                  className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs rounded-lg px-3 py-1.5 transition-colors"
-                >
-                  Done
-                </button>
-              </>
+              <button
+                onClick={() => { onSelect(localSel); onClose(); }}
+                className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs rounded-lg px-3 py-1.5 transition-colors"
+              >
+                Done
+              </button>
             )}
             <button
               onClick={onClose}
-              className="text-[var(--muted)] hover:text-[var(--text)] transition-colors text-lg leading-none"
+              className="text-[var(--muted)] hover:text-[var(--text)] transition-colors text-lg leading-none px-1"
             >
               ×
             </button>
@@ -82,16 +111,30 @@ export function LibraryPickerModal({ open, onClose, multi = false, selected, onS
             <div className="flex items-center justify-center h-40">
               <div className="w-5 h-5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : items.length === 0 ? (
-            <p className="text-[var(--muted)] text-sm text-center py-12">
-              No wallpapers in library yet. Download some from Browse first.
-            </p>
+          ) : visibleItems.length === 0 ? (
+            <div className="text-center py-12">
+              {tab === "selected" ? (
+                <>
+                  <p className="text-[var(--muted)] text-sm">No images selected yet.</p>
+                  <button
+                    onClick={() => setTab("all")}
+                    className="mt-2 text-xs text-[var(--accent)] hover:underline"
+                  >
+                    Browse all library →
+                  </button>
+                </>
+              ) : (
+                <p className="text-[var(--muted)] text-sm">
+                  No wallpapers in library yet. Download some from Browse first.
+                </p>
+              )}
+            </div>
           ) : (
             <div
               className="grid gap-2"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
             >
-              {items.map((item) => {
+              {visibleItems.map((item) => {
                 const sel = localSel.includes(item.path);
                 return (
                   <button
@@ -113,9 +156,9 @@ export function LibraryPickerModal({ open, onClose, multi = false, selected, onS
                       loading="lazy"
                     />
                     {sel && (
-                      <div className="absolute inset-0 bg-[var(--accent)]/25 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-[var(--accent)]/20 flex items-center justify-center">
                         <div className="w-6 h-6 rounded-full bg-[var(--accent)] flex items-center justify-center shadow-lg">
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
                             <path d="M2 6l3 3 5-5" />
                           </svg>
                         </div>
@@ -135,7 +178,7 @@ export function LibraryPickerModal({ open, onClose, multi = false, selected, onS
   );
 }
 
-// ─── Single-slot picker (used for time-of-day) ────────────────────────────────
+// ─── Single-slot picker (time-of-day) ─────────────────────────────────────────
 
 interface SlotPickerProps {
   value?: string;

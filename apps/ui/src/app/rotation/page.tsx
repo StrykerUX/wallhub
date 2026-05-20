@@ -310,6 +310,10 @@ export default function RotationPage() {
     setSaving(true);
     try {
       await api.setRotationMode(config.rotation);
+      // If rotation is active and daemon is running, apply immediately
+      if (config.rotation.mode !== "disabled" && status) {
+        await api.triggerNext().catch(() => {});
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {
@@ -507,9 +511,11 @@ export default function RotationPage() {
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M2 7l3.5 3.5L12 3" />
               </svg>
-              Saved
+              Saved & applied
             </>
-          ) : saving ? "Saving…" : "Save"}
+          ) : saving ? "Saving…" : (
+            config.rotation.mode !== "disabled" && status ? "Save & apply" : "Save"
+          )}
         </button>
       </div>
     </div>
