@@ -1,34 +1,47 @@
 # Wallhub
 
-A GNOME wallpaper manager for CachyOS/Arch Linux with [wallhaven.cc](https://wallhaven.cc/) integration. Browse and download wallpapers, set them on your desktop and lock screen, and automate rotation by time of day, interval, or daily download — all without keeping the GUI open.
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Platform](https://img.shields.io/badge/platform-Linux%20%2F%20GNOME-informational)
+![Rust](https://img.shields.io/badge/built%20with-Rust%20%2B%20Tauri-orange)
+
+A GNOME wallpaper manager for CachyOS / Arch Linux with [wallhaven.cc](https://wallhaven.cc/) integration.
+
+Browse and download wallpapers, apply them to your desktop and lock screen, and automate rotation by time of day, interval, or daily download — all without keeping the GUI open.
 
 ## Features
 
-- Browse wallhaven.cc with filters (categories, purity, resolution, ratio)
-- Apply wallpapers to desktop, lock screen, or both via `gsettings`
-- Three rotation modes: **interval** (every N minutes), **time of day** (dawn/day/dusk/night), **daily download**
-- Pool sources: local library, wallhaven random, or a hand-picked selection
-- Background daemon with systemd user service — rotates wallpapers without the GUI running
-- Library management: view, apply, and delete downloaded wallpapers
+- **Browse** wallhaven.cc with filters: categories, purity, resolution, ratio, sorting
+- **Apply** wallpapers to desktop, lock screen, or both via `gsettings` (no external tools needed)
+- **Rotate automatically** in three modes:
+  - **Interval** — change every N minutes from your library or wallhaven
+  - **Time of day** — different wallpaper for dawn / day / dusk / night
+  - **Daily download** — fetch a fresh wallpaper from wallhaven every morning
+- **Pool sources** — rotate from your local library, random wallhaven results, or a hand-picked selection
+- **Background daemon** via systemd user service — rotation continues even when the GUI is closed
+- **Library** — view, apply, and delete downloaded wallpapers
 
 ## Architecture
 
 ```
 wallhub/
-├── apps/ui/                     # Next.js 15 frontend (runs inside Tauri)
+├── apps/ui/                     # Next.js 15 frontend (embedded in Tauri)
 ├── crates/
-│   ├── wallhub-core/            # Shared library (API client, scheduler, storage, IPC)
-│   ├── wallhub-gui/src-tauri/   # Tauri app (commands, window)
-│   └── wallhub-daemon/          # Background rotation daemon
+│   ├── wallhub-core/            # Shared library: API client, scheduler, storage, IPC
+│   ├── wallhub-gui/src-tauri/   # Tauri desktop app
+│   └── wallhub-daemon/          # Background rotation daemon (systemd user service)
 └── Cargo.toml                   # Cargo workspace
 ```
 
 ## Requirements
 
-- **OS**: Linux with GNOME (Wayland or X11)
-- **Rust**: stable toolchain via `rustup`
-- **Node.js**: 20+ with `pnpm`
-- **System packages** (Arch/CachyOS):
+| Requirement | Version |
+|---|---|
+| OS | Linux + GNOME (Wayland or X11) |
+| Rust | stable (via `rustup`) |
+| Node.js | 20+ |
+| pnpm | 8+ |
+
+Install system dependencies (Arch / CachyOS):
 
 ```bash
 sudo pacman -S --needed \
@@ -36,12 +49,12 @@ sudo pacman -S --needed \
   appmenu-gtk-module libappindicator-gtk3 librsvg
 ```
 
-## Installation (development)
+## Installation
 
-### 1. Clone the repo
+### 1. Clone
 
 ```bash
-git clone git@github.com:StrykerUX/wallhub.git
+git clone https://github.com/StrykerUX/wallhub.git
 cd wallhub
 ```
 
@@ -55,9 +68,7 @@ rustup default stable
 ### 3. Install frontend dependencies
 
 ```bash
-cd apps/ui
-pnpm install
-cd ../..
+cd apps/ui && pnpm install && cd ../..
 ```
 
 ### 4. Run in development mode
@@ -67,22 +78,20 @@ cd crates/wallhub-gui
 WEBKIT_DISABLE_DMABUF_RENDERER=1 pnpm tauri dev
 ```
 
-> `WEBKIT_DISABLE_DMABUF_RENDERER=1` prevents a crash on some GNOME/Wayland setups with WebKit.
+> `WEBKIT_DISABLE_DMABUF_RENDERER=1` prevents a WebKit crash on some GNOME Wayland setups.
 
-### 5. Build and start the daemon
+### 5. Set up the daemon
 
-The daemon handles rotation in the background. Build and start it separately:
+The daemon handles wallpaper rotation in the background. Build it and register the systemd service:
 
 ```bash
+# From the repo root
 cargo build --bin wallhub-daemon
-```
 
-Then set up the systemd user service (one-time):
-
-```bash
 mkdir -p ~/.config/systemd/user
+REPO_DIR=$(pwd)
 
-cat > ~/.config/systemd/user/wallhub-daemon.service << 'EOF'
+cat > ~/.config/systemd/user/wallhub-daemon.service << EOF
 [Unit]
 Description=Wallhub rotation daemon
 After=graphical-session.target
@@ -90,7 +99,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/wallhub/target/debug/wallhub-daemon
+ExecStart=${REPO_DIR}/target/debug/wallhub-daemon
 Restart=on-failure
 RestartSec=5s
 
@@ -102,7 +111,11 @@ systemctl --user daemon-reload
 systemctl --user enable --now wallhub-daemon.service
 ```
 
-> Update `ExecStart` path to wherever you cloned the repo.
+Verify it's running:
+
+```bash
+systemctl --user status wallhub-daemon
+```
 
 ## Production build
 
@@ -111,21 +124,23 @@ cd crates/wallhub-gui
 pnpm tauri build
 ```
 
-Outputs (`.deb`, AppImage, `.tar.gz`) will be at `target/release/bundle/`.
+Bundles (`.deb`, AppImage, `.tar.gz`) are output to `target/release/bundle/`.
 
-Update the daemon service's `ExecStart` to point to `target/release/wallhub-daemon` after a release build.
+After a release build, update the daemon service `ExecStart` to point to `target/release/wallhub-daemon` and run `systemctl --user daemon-reload && systemctl --user restart wallhub-daemon`.
 
 ## Configuration
 
-Config is stored at `~/.config/wallhub/config.toml`. It is created automatically on first run.
+Config is stored at `~/.config/wallhub/config.toml` and created automatically on first run.
 
 ### wallhaven API key (optional)
 
-Required to access NSFW content. Paste your key in **Settings → API Key** — it is saved in `config.toml`.
+An API key is required to access NSFW content and higher rate limits. Add it in **Settings → API Key** inside the app — it is saved to `config.toml`.
 
 Get a key at [wallhaven.cc/settings](https://wallhaven.cc/settings).
 
-## Verifying wallpaper changes
+## Troubleshooting
+
+**Wallpaper didn't change?** Verify via terminal:
 
 ```bash
 gsettings get org.gnome.desktop.background picture-uri
@@ -133,10 +148,16 @@ gsettings get org.gnome.desktop.background picture-uri-dark
 gsettings get org.gnome.desktop.screensaver picture-uri
 ```
 
-## Daemon logs
+**Daemon not rotating?** Check logs:
 
 ```bash
 journalctl --user -u wallhub-daemon -f
+```
+
+**Daemon out of date after a code change?** Rebuild and restart:
+
+```bash
+cargo build --bin wallhub-daemon && systemctl --user restart wallhub-daemon
 ```
 
 ## License
