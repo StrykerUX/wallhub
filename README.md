@@ -11,7 +11,7 @@ Browse and download wallpapers, apply them to your desktop and lock screen, and 
 ## Features
 
 - **Browse** wallhaven.cc with filters: categories, purity, resolution, ratio, sorting
-- **Apply** wallpapers to desktop, lock screen, or both via `gsettings` (no external tools needed)
+- **Apply** wallpapers to desktop, lock screen, or both — GNOME via `gsettings`, KDE Plasma 6 via `plasma-apply-wallpaperimage` + `kwriteconfig6`
 - **Rotate automatically** in three modes:
   - **Interval** — change every N minutes from your library or wallhaven
   - **Time of day** — different wallpaper for dawn / day / dusk / night
@@ -36,7 +36,7 @@ wallhub/
 
 | Requirement | Version |
 |---|---|
-| OS | Linux + GNOME (Wayland or X11) |
+| OS | Linux + GNOME or KDE Plasma 6 (Wayland or X11) |
 | Rust | stable (via `rustup`) |
 | Node.js | 20+ |
 | pnpm | 8+ |
