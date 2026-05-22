@@ -1,0 +1,21 @@
+post_install() {
+    echo ""
+    echo "  Wallhub installed. To start the background daemon, run:"
+    echo ""
+    echo "    systemctl --user enable --now wallhub-daemon.service"
+    echo ""
+    echo "  Then launch the app from your application menu or run: wallhub"
+    echo ""
+}
+
+post_upgrade() {
+    echo ""
+    echo "  Wallhub upgraded. Restart the daemon to apply changes:"
+    echo ""
+    echo "    systemctl --user restart wallhub-daemon.service"
+    echo ""
+}
+
+pre_remove() {
+    systemctl --user disable --now wallhub-daemon.service 2>/dev/null || true
+}

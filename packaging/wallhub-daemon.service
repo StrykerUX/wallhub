@@ -1,0 +1,13 @@
+[Unit]
+Description=Wallhub rotation daemon
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/wallhub-daemon
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=default.target

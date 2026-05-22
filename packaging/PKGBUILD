@@ -1,0 +1,59 @@
+# Maintainer: StrykerUX <https://github.com/StrykerUX>
+pkgname=wallhub-bin
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="GNOME and KDE Plasma 6 wallpaper manager with wallhaven.cc integration"
+arch=('x86_64')
+url="https://github.com/StrykerUX/wallhub"
+license=('MIT')
+depends=(
+    'webkit2gtk-4.1'
+    'appmenu-gtk-module'
+    'libappindicator-gtk3'
+    'librsvg'
+)
+optdepends=(
+    'plasma-workspace: KDE Plasma 6 wallpaper support'
+)
+provides=('wallhub')
+conflicts=('wallhub')
+install=wallhub.install
+source=(
+    "wallhub::https://github.com/StrykerUX/wallhub/releases/download/v${pkgver}/wallhub"
+    "wallhub-daemon::https://github.com/StrykerUX/wallhub/releases/download/v${pkgver}/wallhub-daemon"
+    "wallhub-daemon.service"
+)
+sha256sums=(
+    'f0cf7f9b6f12934667d19931e79dfe7eb733638e3980f97180f4c53c0fddea29'
+    'ac49f055af335129f021f34a0c0a038a28b3296a4cbf60cae40e93a3540d06f3'
+    'SKIP'
+)
+
+package() {
+    # Binaries
+    install -Dm755 "${srcdir}/wallhub"        "${pkgdir}/usr/bin/wallhub"
+    install -Dm755 "${srcdir}/wallhub-daemon" "${pkgdir}/usr/bin/wallhub-daemon"
+
+    # Systemd user service
+    install -Dm644 "${srcdir}/wallhub-daemon.service" \
+        "${pkgdir}/usr/lib/systemd/user/wallhub-daemon.service"
+
+    # .desktop entry
+    install -Dm644 /dev/stdin "${pkgdir}/usr/share/applications/wallhub.desktop" << EOF
+[Desktop Entry]
+Name=Wallhub
+Comment=Wallpaper manager with wallhaven.cc integration
+Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 wallhub
+Icon=wallhub
+Terminal=false
+Type=Application
+Categories=Graphics;Settings;
+StartupWMClass=wallhub
+EOF
+
+    # Icons (from extracted .deb — run makepkg from the packaging/ dir after copying them)
+    # To add icons, copy wallhub.png files next to this PKGBUILD and uncomment:
+    # install -Dm644 "icon-32.png"  "${pkgdir}/usr/share/icons/hicolor/32x32/apps/wallhub.png"
+    # install -Dm644 "icon-128.png" "${pkgdir}/usr/share/icons/hicolor/128x128/apps/wallhub.png"
+    # install -Dm644 "icon-256.png" "${pkgdir}/usr/share/icons/hicolor/256x256@2/apps/wallhub.png"
+}

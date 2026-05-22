@@ -42,7 +42,26 @@ The GUI and the daemon are separate binaries. The daemon runs in the background 
 
 ---
 
-## Requirements
+## Quick install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/StrykerUX/wallhub/main/install.sh | bash
+```
+
+Installs binaries to `~/.local/bin`, sets up the systemd user service, and adds a desktop entry. Works on Arch/CachyOS and Debian/Ubuntu.
+
+**Arch / CachyOS (via AUR):**
+
+```bash
+yay -S wallhub-bin
+systemctl --user enable --now wallhub-daemon.service
+```
+
+Then launch Wallhub from your app launcher.
+
+---
+
+## Requirements (manual install / development)
 
 | | |
 |---|---|
